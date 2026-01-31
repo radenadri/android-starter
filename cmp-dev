@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+### =========================
+### CONFIG
+### =========================
+
+DEBOUNCE_MS=800
+ANDROID_VARIANT=Debug
+
+### =========================
+### UTILS
+### =========================
+
+log() {
+  printf "[%s] %s\n" "$(date '+%H:%M:%S')" "$*"
+}
+
+now_ms() {
+  echo $(( $(date +%s) * 1000 ))
+}
+
+require() {
+  command -v "$1" >/dev/null || {
+    echo "Missing dependency: $1"
+    exit 1
+  }
+}
+
+### =========================
+### ANDROID DETECTION
+### =========================
+
+android_detect_device() {
+  DEVICE_ID=$(adb devices | awk 'NR>1 && $2=="device"{print $1; exit}')
+  [[ -z "${DEVICE_ID:-}" ]] && { echo "No Android device found"; exit 1; }
+  log "Using device: $DEVICE_ID"
+}
+
+android_detect_api_level() {
+  API_LEVEL=$(adb shell getprop ro.build.version.sdk | tr -d '\r')
+  log "Android API level: $API_LEVEL"
+}
+
+android_detect_app() {
+  APP_ID=$(./gradlew -q :androidApp:printApplicationId)
+  MAIN_ACTIVITY="$APP_ID/.MainActivity"
+}
+
+### =========================
+### ANDROID BUILD
+### =========================
+
+android_install_replace() {
+  adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk \
+    >/dev/null 2>&1
+}
+
+android_shared_rebuild() {
+  log "sharedUI changed → incremental rebuild"
+  ./gradlew :androidApp:assemble$ANDROID_VARIANT
+  android_install_replace
+  android_fast_restart
+}
+
+android_full_rebuild() {
+  log "Full rebuild"
+  ./gradlew clean :androidApp:assemble$ANDROID_VARIANT
+  android_install_replace
+  android_fast_restart
+}
+
+android_initial_build() {
+  log "Initial build"
+  ./gradlew :androidApp:assemble$ANDROID_VARIANT
+  android_install_replace
+  android_fast_restart
+}
+
+### =========================
+### ANDROID LAUNCH (SAFE)
+### =========================
+
+android_launch_am() {
+  adb shell am start \
+    -n "$MAIN_ACTIVITY" \
+    -a android.intent.action.MAIN \
+    -c android.intent.category.LAUNCHER \
+    --activity-clear-task \
+    --activity-new-task \
+    >/dev/null 2>&1
+}
+
+android_launch_monkey() {
+  adb shell monkey \
+    -p "$APP_ID" \
+    -c android.intent.category.LAUNCHER 1 \
+    >/dev/null 2>&1
+}
+
+android_fast_restart() {
+  log "Restarting app"
+
+  if android_launch_am; then
+    log "Launched via am start"
+    return 0
+  fi
+
+  log "am start failed → fallback to monkey"
+  android_launch_monkey || log "Launch failed"
+}
+
+### =========================
+### DESKTOP
+### =========================
+
+desktop_dev() {
+  log "Desktop dev mode"
+  ./gradlew :desktopApp:run --continuous
+}
+
+### =========================
+### CHANGE CLASSIFIER
+### =========================
+
+classify_change() {
+  local path="$1"
+
+  if [[ "$path" == *"/sharedUI/"* ]]; then
+    echo "shared"
+  elif [[ "$path" == *"/androidApp/"* ]]; then
+    echo "android"
+  elif [[ "$path" == *".gradle"* || "$path" == *"/gradle/"* ]]; then
+    echo "full"
+  else
+    echo "unknown"
+  fi
+}
+
+### =========================
+### ANDROID DEV (WATCH)
+### =========================
+
+android_dev() {
+  require adb
+  require fswatch
+
+  android_detect_device
+  android_detect_api_level
+  android_detect_app
+
+  android_initial_build
+
+  log "Watching (debounce ${DEBOUNCE_MS}ms)..."
+  LAST_EVENT=0
+
+  fswatch -r sharedUI androidApp gradle *.gradle.kts | while read -r path; do
+    NOW=$(now_ms)
+    DIFF=$((NOW - LAST_EVENT))
+
+    (( DIFF < DEBOUNCE_MS )) && continue
+    LAST_EVENT=$NOW
+
+    CHANGE_TYPE=$(classify_change "$path")
+
+    case "$CHANGE_TYPE" in
+      shared)
+        android_shared_rebuild
+        ;;
+      android)
+        log "androidApp changed → rebuild"
+        android_shared_rebuild
+        ;;
+      full)
+        android_full_rebuild
+        ;;
+      *)
+        log "ignored: $path"
+        ;;
+    esac
+  done
+}
+
+### =========================
+### ENTRYPOINT
+### =========================
+
+case "${1:-}" in
+  dev)
+    shift || true
+    TARGETS=("$@")
+    [[ ${#TARGETS[@]} -eq 0 ]] && TARGETS=(android)
+
+    for target in "${TARGETS[@]}"; do
+      case "$target" in
+        android) android_dev & ;;
+        desktop) desktop_dev & ;;
+        *)
+          echo "Unknown target: $target"
+          exit 1
+          ;;
+      esac
+    done
+
+    wait
+    ;;
+  *)
+    echo "Usage:"
+    echo "  ./cmp-dev dev [android] [desktop]"
+    ;;
+esac
