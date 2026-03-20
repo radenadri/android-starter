@@ -23,19 +23,24 @@ import xyz.radenadri.starter.data.local.database.TodoDao
 import javax.inject.Inject
 
 interface TodoRepository {
-    val todos: Flow<List<String>>
-
+    val todos: Flow<List<Todo>>
     suspend fun add(name: String)
+    suspend fun delete(uid: Int)
 }
 
 class DefaultTodoRepository @Inject constructor(
     private val todoDao: TodoDao
 ) : TodoRepository {
 
-    override val todos: Flow<List<String>> =
-        todoDao.getTodos().map { items -> items.map { it.name } }
+    override val todos: Flow<List<Todo>> =
+        todoDao.getTodos()
+            .map { it.sortedByDescending(Todo::uid) }
 
     override suspend fun add(name: String) {
         todoDao.insertTodo(Todo(name = name))
+    }
+
+    override suspend fun delete(uid: Int) {
+        todoDao.deleteTodo(uid)
     }
 }

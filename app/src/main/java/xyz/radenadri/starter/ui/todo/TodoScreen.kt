@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -31,12 +33,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
+import xyz.radenadri.starter.data.local.database.Todo
 
 @Composable
 fun TodoScreen(
@@ -49,6 +53,7 @@ fun TodoScreen(
         TodoScreen(
             items = (items as TodoUiState.Success).data,
             onSave = viewModel::addTodo,
+            onDelete = viewModel::deleteTodo,
             modifier = modifier,
         )
     }
@@ -56,8 +61,9 @@ fun TodoScreen(
 
 @Composable
 internal fun TodoScreen(
-    items: List<String>,
-    onSave: (name: String) -> Unit,
+    items: List<Todo>,
+    onSave: (String) -> Unit,
+    onDelete: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -82,7 +88,26 @@ internal fun TodoScreen(
             }
         }
         items.forEach {
-            Text("Saved item: $it")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Saved item: ${it.name}")
+                Button(
+                    onClick = { onDelete(it.uid) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorScheme.error,
+                        contentColor = colorScheme.onError,
+                        disabledContainerColor = colorScheme.errorContainer,
+                        disabledContentColor = colorScheme.onErrorContainer
+                    ),
+                ) {
+                    Text("Delete")
+                }
+            }
         }
     }
 }
@@ -92,15 +117,27 @@ internal fun TodoScreen(
 @Preview(showBackground = true)
 @Composable
 private fun DefaultPreview() {
+    val sampleTodos = listOf(
+        Todo(name = "Compose"),
+        Todo(name = "Room"),
+        Todo(name = "Kotlin")
+    )
+
     MyApplicationTheme {
-        TodoScreen(listOf("Compose", "Room", "Kotlin"), onSave = {})
+        TodoScreen(sampleTodos, onSave = {}, onDelete = {})
     }
 }
 
 @Preview(showBackground = true, widthDp = 340)
 @Composable
 private fun PortraitPreview() {
+    val sampleTodos = listOf(
+        Todo(name = "Compose"),
+        Todo(name = "Room"),
+        Todo(name = "Kotlin")
+    )
+
     MyApplicationTheme {
-        TodoScreen(listOf("Compose", "Room", "Kotlin"), onSave = {})
+        TodoScreen(sampleTodos, onSave = {}, onDelete = {})
     }
 }

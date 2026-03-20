@@ -38,4 +38,7 @@ interface TodoDao {
 
     @Insert
     suspend fun insertTodo(item: Todo)
+
+    @Query("DELETE FROM todo WHERE uid = :uid")
+    suspend fun deleteTodo(uid: Int)
 }

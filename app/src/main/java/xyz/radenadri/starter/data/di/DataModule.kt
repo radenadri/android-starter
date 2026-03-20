@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import xyz.radenadri.starter.data.TodoRepository
 import xyz.radenadri.starter.data.DefaultTodoRepository
+import xyz.radenadri.starter.data.local.database.Todo
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,11 +40,19 @@ interface DataModule {
 }
 
 class FakeTodoRepository @Inject constructor() : TodoRepository {
-    override val todos: Flow<List<String>> = flowOf(fakeTodos)
+    override val todos: Flow<List<Todo>> = flowOf(fakeTodos.map { Todo(name = it.name) })
 
     override suspend fun add(name: String) {
         throw NotImplementedError()
     }
+
+    override suspend fun delete(uid: Int) {
+        throw NotImplementedError()
+    }
 }
 
-val fakeTodos = listOf("One", "Two", "Three")
+val fakeTodos = listOf(
+    Todo(name = "Todo 1"),
+    Todo(name = "Todo 2"),
+    Todo(name = "Todo 3"),
+)

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import xyz.radenadri.starter.data.TodoRepository
+import xyz.radenadri.starter.data.local.database.Todo
 import xyz.radenadri.starter.ui.todo.TodoUiState.Error
 import xyz.radenadri.starter.ui.todo.TodoUiState.Loading
 import xyz.radenadri.starter.ui.todo.TodoUiState.Success
@@ -37,7 +38,7 @@ class TodoViewModel @Inject constructor(
 ) : ViewModel() {
 
     val uiState: StateFlow<TodoUiState> = todoRepository
-        .todos.map<List<String>, TodoUiState>(::Success)
+        .todos.map<List<Todo>, TodoUiState>(::Success)
         .catch { emit(Error(it)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Loading)
 
@@ -46,10 +47,16 @@ class TodoViewModel @Inject constructor(
             todoRepository.add(name)
         }
     }
+
+    fun deleteTodo(uid: Int) {
+        viewModelScope.launch {
+            todoRepository.delete(uid)
+        }
+    }
 }
 
 sealed interface TodoUiState {
     object Loading : TodoUiState
     data class Error(val throwable: Throwable) : TodoUiState
-    data class Success(val data: List<String>) : TodoUiState
+    data class Success(val data: List<Todo>) : TodoUiState
 }
