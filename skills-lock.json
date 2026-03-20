@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "android-development": {
+      "source": "dpconde/claude-android-skill",
+      "sourceType": "github",
+      "computedHash": "2537ca062ab80d0235db27b4dadee5e07a84c5356aedf7f9d426e7f23019197d"
+    },
+    "architecture-documentation": {
+      "source": "dha201/architecture-documentation-plugin",
+      "sourceType": "github",
+      "computedHash": "bd83a043e40a903055fb0ae8c5f29c268fa9bd77bcbf69fc34dd0ae7e61766da"
+    },
+    "human-writing-style": {
+      "source": "dha201/architecture-documentation-plugin",
+      "sourceType": "github",
+      "computedHash": "0fff9397c023f593aaf4e8e56e5bcc7854c1bc93ec27d45337b4b2698037c481"
+    },
+    "mobile-android-design": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "0dfa08663016e0faa2db0611420bd5c17ba2d635a057e17a6b71c2a0c3f2ed79"
+    },
+    "rendering-docx": {
+      "source": "dha201/architecture-documentation-plugin",
+      "sourceType": "github",
+      "computedHash": "bf712b970891e8f771d2bfccd2c2cd33304b3253b73468b52da22218eb15b193"
+    },
+    "technical-debrief-outline": {
+      "source": "dha201/architecture-documentation-plugin",
+      "sourceType": "github",
+      "computedHash": "f69511493079719a8fd69329baf02fef9d3fb767f1395133b9be1bbfdef11a59"
+    }
+  }
+}
