@@ -1,96 +1,59 @@
-# CLAUDE.md
+## Workflow Orchestration
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+### 1. Plan Node Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately - don't keep pushing
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
 
-## Project overview
-- Android app for healthcare workflows built as a single `:app` module.
-- Tech stack: Kotlin 2.1, Jetpack Compose, Material 3, Navigation Compose, Hilt, Room, Coroutines/Flow.
-- Persistence is entirely local today: Room database `vickyapp.db` with no backend/API layer present in the codebase.
-- Main app package: `xyz.radenadri.vicky`.
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One tack per subagent for focused execution
 
-## Common commands
-Run all commands from the repository root.
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
 
-### Build
-- `./gradlew build` — full build
-- `./gradlew assembleDebug` — build debug APK
-- `./gradlew clean` — clean outputs
-- `./gradlew build --refresh-dependencies` — refresh dependencies and rebuild
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
 
-### Lint
-- `./gradlew lint` — all Android lint checks
-- `./gradlew lintDebug` — lint debug variant
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes - don't over-engineer
+- Challenge your own work before presenting it
 
-### Tests
-- `./gradlew test` — all unit tests
-- `./gradlew testDebugUnitTest` — debug unit tests
-- `./gradlew connectedDebugAndroidTest` — instrumented/UI tests; requires device or emulator
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests - then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
 
-### Run a single test
-- `./gradlew testDebugUnitTest --tests "xyz.radenadri.vicky.ui.MainViewModelTest"`
-- `./gradlew testDebugUnitTest --tests "xyz.radenadri.vicky.ui.MainViewModelTest.someMethod"`
-- `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=xyz.radenadri.vicky.ui.NavigationTest`
-- `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=xyz.radenadri.vicky.ui.NavigationTest#testNavigation`
+## Task Management
+1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
+2. **Verify Plan**: Check in before starting implementation
+3. **Track Progress**: Mark items complete as you go
+4. **Explain Changes**: High-level summary at each step
+5. **Document Results**: Add review section to `tasks/todo.md`
+6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
 
-## Repository structure
-- `app/src/main/java/xyz/radenadri/vicky/` — production code
-- `app/src/test/java/` — local unit tests
-- `app/src/androidTest/java/` — instrumented tests, including Hilt test runner
-- `app/src/main/res/` — resources
-- `app/schemas/` — Room schema output generated via KSP; do not remove when changing Room schema
-- `gradle/libs.versions.toml` — central dependency and plugin versions
+## Core Principles
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
 
-## Architecture
+## Tool Execution Rules
+- Only call ONE tool per response
+- Wait for tool results before continuing
+- Never send multiple tool calls in one response
+- Format: call tool → wait for user to send results → proceed to next tool
+- If you have obra superpowers installed, do not use git worktrees
 
-### App shell
-- `Vicky.kt` is the `@HiltAndroidApp` application entry point.
-- `ui/MainActivity.kt` is the single activity; it enables edge-to-edge and renders `MainNavigation()` inside `VickyTheme`.
-
-### Navigation model
-- `ui/Navigation.kt` owns the app-wide `NavHost`.
-- Start destination is `splashscreen`, which decides the initial flow before login/main screens.
-- Most feature routing is centralized in this single file rather than split into per-feature graphs.
-- The main authenticated shell is `ui/main/MainView.kt`, which uses a bottom navigation bar to swap between four top-level sections: Home, Patients, Calendar, and Encounters.
-
-### UI/state pattern
-- UI is Compose-first.
-- Feature screens generally live under `ui/main/...` grouped by workflow area (`home`, `patients`, `encounters`, `scheduling`, `menu`, `login`, etc.).
-- ViewModels are colocated with feature screens and typically expose `StateFlow` consumed directly by composables.
-- A shared `Results` / multi-state rendering pattern is used for loading, success, empty, and failure states; `ui/components/MultiStateView.kt` is part of that pattern.
-
-### Data layer
-- Room is the source of truth. `data/local/database/AppDatabase.kt` defines a large local schema covering patients, appointments, encounters, medications, labs, tasks, notes, catalogs, and auth.
-- `di/VickyModule.kt` provides the singleton Room database and repository bindings through Hilt.
-- Repository interfaces live in `data/repository/`; current concrete implementations are in `data/datastore/` and mostly delegate straight to DAOs.
-- DAOs and entities are under `data/local/database/dao/` and `.../entity/`.
-- Type conversion logic is in `data/local/Converters.kt`.
-
-### Feature/domain shape
-- The app is organized around healthcare workflows rather than technical layers alone:
-  - authentication/legal
-  - home/security/sync
-  - patients and their subflows (vitals, problems, medications, prescriptions, orders, complaints, treatments)
-  - encounters and assessments
-  - scheduling/tasks/appointments
-  - profile/menu/forms/PIN
-  - search
-- `MODULES.md` is useful when mapping a route name to the primary files involved.
-
-## Build and tooling details
-- JVM/toolchain target is 17.
-- `compileSdk` / `targetSdk` are 35; `minSdk` is 27.
-- Compose is enabled in `app/build.gradle.kts`.
-- KSP is configured to emit Room schemas into `app/schemas`.
-- Instrumented tests use `xyz.radenadri.vicky.HiltTestRunner`.
-
-## Testing notes
-- Existing test coverage is light and includes both unit and Compose navigation/UI tests.
-- Android test wiring is Hilt-based via `HiltTestRunner`.
-- There is a placeholder `androidTest/testdi/TestDatabaseModule.kt`; if adding Hilt-backed test replacements, check whether it should be revived or replaced.
-
-## Repo-specific guidance
-- Prefer following the current architecture: Compose UI -> ViewModel -> repository/datastore -> Room DAO.
-- Keep new screens inside the existing workflow folders under `ui/main/...` and register routes in `ui/Navigation.kt`.
-- Keep dependency versions centralized in `gradle/libs.versions.toml`.
-- This repo already has `AGENTS.md`, `Architecture.md`, and `MODULES.md`; use them for deeper context before large refactors.
-- No `.cursor/rules`, `.cursorrules`, or `.github/copilot-instructions.md` were present when this file was generated.
+===
